@@ -12,7 +12,7 @@ RED = (255, 0, 0)
 
 LINE_WIDTH = 5
 
-SPACE_AROUND = 1
+PADDING = (10,10)
 
 MODEL = load_model('HandwrittenDigitRecognition.h5')
 
@@ -29,8 +29,8 @@ LABELS = {
     9:'Nine'
 }
 
-number_x = []
-number_y = []
+pixel_x = []
+pixel_y = []
 
 pygame.init()
 
@@ -42,31 +42,34 @@ iswriting = False
 
 while True:
     for event in pygame.event.get():
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q:
                 pygame.quit()
                 sys.exit()
             if event.key == pygame.K_c:
                 DISPLAYSURFACE.fill(BLACK)
+
         if event.type == MOUSEMOTION and iswriting:
             x, y = event.pos
             pygame.draw.circle(DISPLAYSURFACE, WHITE, (x,y), LINE_WIDTH, 0)
-            number_x.append(x)
-            number_y.append(y)
+            pixel_x.append(x)
+            pixel_y.append(y)
+
         if event.type == MOUSEBUTTONDOWN:
-            number_x = []
-            number_y = []
+            pixel_x = []
+            pixel_y = []
             iswriting = True
             
         if event.type == MOUSEBUTTONUP:
             iswriting = False
-            number_x = sorted(number_x)
-            number_y = sorted(number_y)
+            pixel_x = sorted(pixel_x)
+            pixel_y = sorted(pixel_y)
 
-            min_x = number_x[0] - LINE_WIDTH
-            max_x = number_x[-1] + LINE_WIDTH
-            min_y = number_y[0] - LINE_WIDTH
-            max_y = number_y[-1] + LINE_WIDTH
+            min_x = max(0, pixel_x[0] - LINE_WIDTH)
+            max_x = min(pixel_x[-1] + LINE_WIDTH, WINDOW_SIZE[0])
+            min_y = max(0, pixel_y[0] - LINE_WIDTH)
+            max_y = min(pixel_y[-1] + LINE_WIDTH, WINDOW_SIZE[1])
 
             pygame.draw.rect(
                 DISPLAYSURFACE, 
@@ -76,15 +79,15 @@ while True:
                 1
             )
 
-            img_arr = np.array(pygame.PixelArray(DISPLAYSURFACE))[min_x-SPACE_AROUND:max_x+SPACE_AROUND, min_y-SPACE_AROUND:max_y+SPACE_AROUND].T.astype(np.float32)
+            img_arr = np.array(pygame.PixelArray(DISPLAYSURFACE))[min_x:max_x, min_y:max_y].T.astype(np.float32)    
             image = cv2.resize(img_arr, (28,28))
-            image = np.pad(image, (10,10), 'constant', constant_values = 0)
+            image = np.pad(image, PADDING, 'constant', constant_values = 0)
             image = cv2.resize(image, (28,28))/255.0
 
             result = str(LABELS[np.argmax(MODEL.predict(image.reshape(1,28,28,1)))])
             text = FONT.render(result, True, RED, BLACK)
             textRect = text.get_rect()
-            textRect.center = ((number_x[0]+number_x[-1])/2.0, (number_y[0]+number_y[-1])/2.0)
+            textRect.center = ((pixel_x[0]+pixel_x[-1])/2.0, (pixel_y[0]+pixel_y[-1])/2.0)
             DISPLAYSURFACE.blit(text, textRect)
         
         pygame.display.update()
